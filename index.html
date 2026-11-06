@@ -1,0 +1,664 @@
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About That</title>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    background: #0a1020;
+    color: white;
+}
+
+.header {
+    background: #d94f67;
+    padding: 18px;
+    font-size: 30px;
+    font-weight: bold;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.subheader {
+    text-align: center;
+    padding: 10px;
+    color: #ccc;
+}
+
+.container {
+    max-width: 700px;
+    margin: auto;
+    padding: 15px;
+}
+
+.card, .story, .login-box, .admin-post {
+    background: #12192f;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-radius: 15px;
+}
+
+.card h3 {
+    color: #ff708b;
+    margin-bottom: 10px;
+}
+
+.screen {
+    display: none;
+}
+
+.active {
+    display: block;
+}
+
+button {
+    background: #d94f67;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin: 5px 5px 5px 0;
+}
+
+button:hover {
+    opacity: .85;
+}
+
+.delete-btn {
+    background: #c0392b;
+}
+
+input, textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 10px;
+    border: none;
+}
+
+textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.like-section {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.status {
+    color: #ff708b;
+    margin: 15px 0;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">ABOUT THAT</div>
+
+<!-- HOME -->
+<div id="home" class="screen active">
+
+    <div class="subheader">
+        Bayview High's favoriete roddelblog<br>
+        Door Simon Kelleher
+    </div>
+
+    <div class="container">
+
+        <button onclick="showLogin()">Simon Login</button>
+
+        <p id="status" class="status"></p>
+
+        <div id="gossipList"></div>
+
+    </div>
+</div>
+
+<!-- STORY -->
+<div id="storyPage" class="screen">
+
+    <div class="container">
+
+        <button onclick="goHome()">← Terug</button>
+
+        <div class="story">
+
+            <h2 id="storyTitle"></h2>
+
+            <br>
+
+            <p id="storyContent"></p>
+
+            <div class="like-section">
+
+                <button onclick="vote(1)">
+                    👍 <span id="likes">0</span>
+                </button>
+
+                <button onclick="vote(-1)">
+                    👎 <span id="dislikes">0</span>
+                </button>
+
+                <button
+                    id="deletePostBtn"
+                    class="delete-btn"
+                    onclick="deleteCurrentPost()"
+                    style="display:none;">
+                    🗑 Verwijder deze roddel
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginPage" class="screen">
+
+    <div class="container">
+
+        <button onclick="goHome()">← Terug</button>
+
+        <div class="login-box">
+
+            <h2>Simon Login</h2>
+
+            <input id="username" placeholder="Gebruikersnaam">
+
+            <input id="password" type="password" placeholder="Wachtwoord">
+
+            <button onclick="login()">Inloggen</button>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- ADMIN -->
+<div id="adminPage" class="screen">
+
+    <div class="container">
+
+        <h2>Simon's Dashboard</h2>
+
+        <div class="admin-post">
+
+            <input id="newTitle" placeholder="Titel">
+
+            <textarea id="newStory" placeholder="Volledig verhaal"></textarea>
+
+            <button onclick="publishPost()">
+                Publiceer roddel
+            </button>
+
+        </div>
+
+        <button onclick="goHome()">Naar Home</button>
+
+        <button onclick="logout()">Uitloggen</button>
+
+    </div>
+
+</div>
+
+<script>
+
+// ==================================
+// GEGEVENS
+// ==================================
+
+const STORAGE_KEY = "aboutThatPosts";
+
+let isAdmin = false;
+let currentPostId = null;
+
+const defaultPosts = [
+    {
+        id: "post1",
+        title: "SEKSTAPE-SCHANDAAL",
+        story: "Iedereen op Bayview High praat over een mysterieuze video waarin mogelijk leerling L.M. betrokken zou zijn. Niemand weet wat waar is, maar het gerucht verspreidt zich razendsnel.",
+        likes: 12,
+        dislikes: 2
+    },
+    {
+        id: "post2",
+        title: "ZWANGERSCHAPSPANIEK",
+        story: "Volgens bronnen maakt E.R. zich zorgen over een geheim dat alles kan veranderen. Het gerucht gaat al dagen rond op Bayview High.",
+        likes: 8,
+        dislikes: 1
+    },
+    {
+        id: "post3",
+        title: "VREEMDGAAN #1",
+        story: "K.T.'s ogenschijnlijk perfecte relatie blijkt misschien niet zo perfect als iedereen dacht.",
+        likes: 6,
+        dislikes: 3
+    },
+    {
+        id: "post4",
+        title: "VREEMDGAAN #2",
+        story: "De initialen M.S. worden steeds vaker genoemd in een nieuw schandaal over ontrouw.",
+        likes: 10,
+        dislikes: 2
+    }
+];
+
+
+// ==================================
+// OPSLAAN EN OPHALEN
+// ==================================
+
+function loadPosts() {
+
+    try {
+
+        const saved = localStorage.getItem(STORAGE_KEY);
+
+        if (saved === null) {
+            localStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify(defaultPosts)
+            );
+
+            return [...defaultPosts];
+        }
+
+        const parsed = JSON.parse(saved);
+
+        if (!Array.isArray(parsed)) {
+            throw new Error("Ongeldige gegevens");
+        }
+
+        return parsed;
+
+    } catch (error) {
+
+        console.error("Fout bij laden:", error);
+
+        alert("De opgeslagen roddels konden niet geladen worden.");
+
+        return [];
+    }
+}
+
+let posts = loadPosts();
+
+
+function savePosts() {
+
+    try {
+
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(posts)
+        );
+
+        return true;
+
+    } catch (error) {
+
+        console.error("Opslaan mislukt:", error);
+
+        alert("Opslaan mislukt. Controleer je browserinstellingen.");
+
+        return false;
+    }
+}
+
+
+// ==================================
+// RODDELS TONEN
+// ==================================
+
+function renderPosts() {
+
+    const list = document.getElementById("gossipList");
+
+    list.innerHTML = "";
+
+    if (posts.length === 0) {
+
+        const empty = document.createElement("p");
+
+        empty.textContent = "Er zijn momenteel geen roddels.";
+
+        list.appendChild(empty);
+
+        return;
+    }
+
+    posts.forEach(post => {
+
+        const card = document.createElement("div");
+
+        card.className = "card";
+
+        const title = document.createElement("h3");
+
+        title.textContent = post.title;
+
+        const description = document.createElement("p");
+
+        description.textContent =
+            "Klik om het volledige verhaal te lezen...";
+
+        const openButton = document.createElement("button");
+
+        openButton.textContent = "Lees verhaal";
+
+        openButton.onclick = function() {
+            openStory(post.id);
+        };
+
+        card.appendChild(title);
+        card.appendChild(description);
+        card.appendChild(openButton);
+
+        if (isAdmin) {
+
+            const deleteButton = document.createElement("button");
+
+            deleteButton.className = "delete-btn";
+
+            deleteButton.textContent = "🗑 Verwijder";
+
+            deleteButton.onclick = function() {
+                deletePost(post.id);
+            };
+
+            card.appendChild(deleteButton);
+        }
+
+        list.appendChild(card);
+
+    });
+}
+
+
+// ==================================
+// VERHAAL OPENEN
+// ==================================
+
+function openStory(id) {
+
+    const post = posts.find(item => item.id === id);
+
+    if (!post) return;
+
+    currentPostId = id;
+
+    document.getElementById("storyTitle").textContent =
+        post.title;
+
+    document.getElementById("storyContent").textContent =
+        post.story;
+
+    document.getElementById("likes").textContent =
+        post.likes;
+
+    document.getElementById("dislikes").textContent =
+        post.dislikes;
+
+    document.getElementById("deletePostBtn").style.display =
+        isAdmin ? "inline-block" : "none";
+
+    showScreen("storyPage");
+}
+
+
+// ==================================
+// LIKES
+// ==================================
+
+function vote(value) {
+
+    const post = posts.find(item => item.id === currentPostId);
+
+    if (!post) return;
+
+    if (value === 1) {
+        post.likes++;
+    } else {
+        post.dislikes++;
+    }
+
+    if (!savePosts()) return;
+
+    document.getElementById("likes").textContent = post.likes;
+
+    document.getElementById("dislikes").textContent = post.dislikes;
+}
+
+
+// ==================================
+// LOGIN
+// ==================================
+
+function login() {
+
+    const username = document.getElementById("username").value;
+
+    const password = document.getElementById("password").value;
+
+    if (
+        username === "SimonKelleher" &&
+        password === "aboutthat"
+    ) {
+
+        isAdmin = true;
+
+        document.getElementById("username").value = "";
+        document.getElementById("password").value = "";
+
+        renderPosts();
+
+        showScreen("adminPage");
+
+        alert("Welkom Simon!");
+
+    } else {
+
+        alert("Foute gebruikersnaam of wachtwoord.");
+    }
+}
+
+
+// ==================================
+// UITLOGGEN
+// ==================================
+
+function logout() {
+
+    isAdmin = false;
+
+    currentPostId = null;
+
+    renderPosts();
+
+    showScreen("home");
+}
+
+
+// ==================================
+// PUBLICEREN
+// ==================================
+
+function publishPost() {
+
+    if (!isAdmin) return;
+
+    const title = document.getElementById("newTitle").value.trim();
+
+    const story = document.getElementById("newStory").value.trim();
+
+    if (!title || !story) {
+
+        alert("Vul een titel en verhaal in.");
+
+        return;
+    }
+
+    const newPost = {
+        id: "post_" + Date.now() + "_" +
+            Math.random().toString(36).slice(2),
+        title: title,
+        story: story,
+        likes: 0,
+        dislikes: 0
+    };
+
+    posts.unshift(newPost);
+
+    if (!savePosts()) {
+
+        posts.shift();
+
+        return;
+    }
+
+    document.getElementById("newTitle").value = "";
+
+    document.getElementById("newStory").value = "";
+
+    renderPosts();
+
+    alert("Roddel gepubliceerd!");
+}
+
+
+// ==================================
+// VERWIJDEREN - HOOFDFUNCTIE
+// ==================================
+
+function deletePost(id) {
+
+    if (!isAdmin) {
+
+        alert("Je moet ingelogd zijn als Simon.");
+
+        return;
+    }
+
+    const index = posts.findIndex(item => item.id === id);
+
+    if (index === -1) {
+
+        alert("Deze roddel bestaat niet.");
+
+        return;
+    }
+
+    const post = posts[index];
+
+    const confirmed = confirm(
+        "Weet je zeker dat je deze roddel wilt verwijderen?\n\n" +
+        post.title
+    );
+
+    if (!confirmed) return;
+
+    // Bewaar de oorspronkelijke gegevens voor het geval
+    // het opslaan mislukt.
+
+    const removedPost = posts[index];
+
+    // VERWIJDER DE RODDEL
+
+    posts.splice(index, 1);
+
+    // SLA DE VERWIJDERING OP
+
+    if (!savePosts()) {
+
+        posts.splice(index, 0, removedPost);
+
+        return;
+    }
+
+    // ALS HET OPEN VERHAAL VERWIJDERD IS
+
+    if (currentPostId === id) {
+
+        currentPostId = null;
+
+        showScreen("home");
+    }
+
+    // VERNIEUW DE LIJST
+
+    renderPosts();
+
+    alert("✅ De roddel is succesvol verwijderd!");
+}
+
+
+// ==================================
+// VERWIJDEREN VANUIT VERHAAL
+// ==================================
+
+function deleteCurrentPost() {
+
+    if (!currentPostId) return;
+
+    deletePost(currentPostId);
+}
+
+
+// ==================================
+// PAGINA WISSELEN
+// ==================================
+
+function showScreen(id) {
+
+    document.querySelectorAll(".screen").forEach(screen => {
+
+        screen.classList.remove("active");
+
+    });
+
+    document.getElementById(id).classList.add("active");
+}
+
+
+function goHome() {
+
+    renderPosts();
+
+    showScreen("home");
+}
+
+
+function showLogin() {
+
+    showScreen("loginPage");
+}
+
+
+// ==================================
+// START WEBSITE
+// ==================================
+
+renderPosts();
+
+</script>
+
+</body>
+</html>
